@@ -20,6 +20,7 @@ namespace mattatz.VoxelSystem {
                 cube.transform.parent = transform;
                 cube.transform.localPosition = voxel.position;
                 cube.transform.localScale = voxel.size * Vector3.one;
+                cube.transform.localRotation = Quaternion.identity;
             });
         }
         

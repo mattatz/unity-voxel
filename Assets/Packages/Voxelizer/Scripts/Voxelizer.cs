@@ -106,24 +106,28 @@ namespace mattatz.VoxelSystem {
             return voxels;
         }
 
-        static List<Voxel> Build (Ray ray, List<HitResult> results, float size) {
+        static List<Voxel> Build (Ray ray, List<HitResult> results, float unit) {
             var voxels = new List<Voxel>();
 
             for (int i = 0, n = results.Count; i < n; i++) {
                 if(i % 2 == 0) {
                     if(i == n - 1) { // last
-                        voxels.Add(new Voxel(ray.origin + results[i].distance * ray.direction, size));
+                        voxels.Add(new Voxel(ray.origin + Grid(results[i].distance, unit) * ray.direction, unit));
                     }
                 } else {
-                    var from = results[i - 1];
-                    var to = results[i];
-                    for(float distance = from.distance; distance < to.distance; distance += size) {
-                        voxels.Add(new Voxel(ray.origin + distance * ray.direction, size));
+                    var from = Grid(results[i - 1].distance, unit);
+                    var to = Grid(results[i].distance, unit);
+                    for(float distance = from; distance < to; distance += unit) {
+                        voxels.Add(new Voxel(ray.origin + distance * ray.direction, unit));
                     }
                 }
             }
 
             return voxels;
+        }
+
+        static float Grid (float distance, float unit) {
+            return Mathf.FloorToInt(distance / unit) * unit;
         }
 
         static bool Hit(Ray ray, List<Triangle> triangles, out List<HitResult> results) {
