@@ -5,7 +5,7 @@ using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace mattatz.VoxelSystem {
+namespace VoxelSystem {
 
     public class Voxel {
         public Vector3 position;

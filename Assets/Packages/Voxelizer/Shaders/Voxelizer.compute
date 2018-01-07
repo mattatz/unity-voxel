@@ -1,0 +1,129 @@
+﻿#pragma kernel Voxelize
+
+#include "UnityCG.cginc"
+#include "./Voxel.cginc"
+
+#define THREAD_X 8
+#define THREAD_Y 8
+#define THREAD_Z 1
+
+CBUFFER_START(VoxelParams)
+
+float3 _Start, _End, _Size;
+float _Unit, _HalfUnit;
+
+int _Width, _Height, _Depth;
+
+CBUFFER_END
+
+StructuredBuffer<float3> _VertBuffer;
+StructuredBuffer<int> _TriBuffer;
+int _TrianglesCount;
+
+RWStructuredBuffer<Voxel> _VoxelBuffer;
+
+float tri_hit(float3 ori, float3 dir, float3 a, float3 b, float3 c) {
+    float3 e1 = b - a;
+    float3 e2 = c - a;
+    float3 P = cross(dir, e2);
+    float det = dot(e1, P);
+
+    const float epsilon = 0.00000001;
+
+    // if (det > -epsilon && det < epsilon) return false;
+    if(abs(det) < epsilon) return -1;
+
+    float invDet = 1.0 / det;
+
+    float3 T = ori - a;
+    float u = dot(T, P) * invDet;
+    if (u < 0.0 || u > 1.0) return -1;
+
+    float3 Q = cross(T, e1);
+    float v = dot(dir, Q * invDet);
+    if (v < 0.0 || u + v > 1.0) return -1;
+
+    float t = dot(e2, Q) * invDet;
+    if(t > epsilon) {
+        return t;
+    }
+
+    return -1.0;
+}
+
+int get_voxel_index(int x, int y, int z) {
+    return z * (_Width * _Height) + y * _Width + x;
+}
+
+float3 get_voxel_position(int x, int y, int z) {
+    return float3(
+        _Start.x + _Unit * x + _HalfUnit,
+        _Start.y + _Unit * y + _HalfUnit,
+        _Start.z + _Unit * z + _HalfUnit
+    );
+}
+
+[numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
+void Voxelize (uint3 id : SV_DispatchThreadID)
+{
+    int x = (int)id.x;
+    int y = (int)id.y;
+
+    if(x >= _Width) return;
+    if(y >= _Height) return;
+
+    float3 ori = float3(
+        _Start.x + _Unit * (float)x + _HalfUnit,
+        _Start.y + _Unit * (float)y + _HalfUnit,
+        _Start.z
+    );
+    float3 dir = float3(0, 0, 1);
+
+    // check intersections
+    for(int i = 0; i < _TrianglesCount; i += 3) {
+        int a = _TriBuffer[i];
+        int b = _TriBuffer[i + 1];
+        int c = _TriBuffer[i + 2];
+
+        float3 v0 = _VertBuffer[a];
+        float3 v1 = _VertBuffer[b];
+        float3 v2 = _VertBuffer[c];
+
+        float dist = tri_hit(ori, dir, v0, v1, v2);
+        if(dist >= 0.0) {
+            int z = dist / _Unit;
+            uint vid = get_voxel_index(x, y, z);
+            Voxel v;
+            // v.position = float3(x, y, z);
+            v.position = get_voxel_position(x, y, z);
+            v.flag = true;
+            _VoxelBuffer[vid] = v;
+        }
+    }
+
+    // fill in
+    for(int z = 0; z < _Depth; z++) {
+        uint vid = get_voxel_index(x, y, z);
+        Voxel v = _VoxelBuffer[vid];
+        if(v.flag) {
+            int start = z + 1;
+            for(int end = start; end < _Depth; end++) {
+                uint vid2 = get_voxel_index(x, y, end);
+                Voxel v2 = _VoxelBuffer[vid2];
+                if(v2.flag) {
+                    for(int z2 = start; z2 < end; z2++) {
+                        Voxel nv;
+                        // nv.position = float3(x, y, z2);
+                        nv.position = get_voxel_position(x, y, z2);
+                        nv.flag = true;
+                        _VoxelBuffer[get_voxel_index(x, y, z2)] = nv;
+                    }
+                    z = end + 1;
+                    break;
+                } 
+            }
+        }
+    }
+
+}
+

@@ -1,18 +1,40 @@
 unity-voxel
 =====================
 
-Voxelize mesh algorithm in Unity.
+Voxelize mesh algorithm in Unity. (includes GPU and CPU voxelizers.)
 
-![Demo](https://raw.githubusercontent.com/mattatz/unity-voxel/master/Captures/Demo.png)
+![Demo](https://raw.githubusercontent.com/mattatz/unity-voxel/master/Captures/Demo.gif)
 
 ## Usage
 
+with GPU Voxelizer (recommended)
 ```cs
-// Voxelize target mesh
-Mesh mesh = GetComponent<MeshFilter>().mesh;
+GPUVoxelData data = GPUVoxelizer.Voxelize(
+    voxelizer,  // ComputeShader (Voxelizer.compute)
+    mesh,       // a target mesh
+    64          // # of voxels for largest AABB bounds
+);
 
-List<Voxel> voxels = Voxelizer.Voxelize(mesh, 20); // 20 is # of voxel for largest AABB bounds
+// build voxel cubes integrated mesh
+GetComponent<MeshFilter>().sharedMesh = GPUVoxelizer.Build(data);
+
+// release a voxel buffer
+data.Dispose();
 ```
+
+with CPU Voxelizer
+```cs
+// Voxelize target mesh with CPU Voxelizer
+
+List<Voxel> voxels = Voxelizer.Voxelize(
+    mesh,   // a target mesh
+    20      // # of voxels for largest AABB bounds
+);
+```
+
+## Compatibility
+
+tested on Unity 2017.0.3, macOS (metal).
 
 ## Sources
 
