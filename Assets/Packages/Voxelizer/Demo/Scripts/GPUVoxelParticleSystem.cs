@@ -10,20 +10,11 @@ using Random = UnityEngine.Random;
 namespace VoxelSystem.Demo
 {
 
-    public struct VParticle_t
-    {
-        public Vector3 position;
-        public Vector3 size;
-        public Quaternion rotation;
-        public Vector3 velocity;
-        public float speed;
-    };
-
     public class GPUVoxelParticleSystem : MonoBehaviour {
 
-		[SerializeField] protected Mesh mesh;
-		[SerializeField] protected ComputeShader voxelizer, particleUpdate;
-		[SerializeField] protected int count = 64;
+        [SerializeField] protected Mesh mesh;
+        [SerializeField] protected ComputeShader voxelizer, particleUpdate;
+        [SerializeField] protected int count = 64;
 
         #region Particle properties
 
@@ -117,6 +108,12 @@ namespace VoxelSystem.Demo
             {
                 particleBuffer.Release();
                 particleBuffer = null;
+            }
+
+            if(indexBuffer != null)
+            {
+                indexBuffer.Release();
+                indexBuffer = null;
             }
         }
 
