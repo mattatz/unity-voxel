@@ -22,6 +22,7 @@ namespace VoxelSystem {
 		float unitLength;
 
 		ComputeBuffer buffer;
+        Voxel_t[] voxels;
 
 		public GPUVoxelData(ComputeBuffer buf, int w, int h, int d, float u) {
 			buffer = buf;
@@ -32,8 +33,11 @@ namespace VoxelSystem {
 		}
 
 		public Voxel_t[] GetData() {
-			var voxels = new Voxel_t[Buffer.count];
-			Buffer.GetData(voxels);
+            // cache
+            if(voxels == null) {
+			    voxels = new Voxel_t[Buffer.count];
+			    Buffer.GetData(voxels);
+            }
 			return voxels;
 		}
 

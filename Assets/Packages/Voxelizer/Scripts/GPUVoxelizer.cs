@@ -79,7 +79,7 @@ namespace VoxelSystem {
 			var uvs = new List<Vector2>();
 			var triangles = new List<int>();
 			var normals = new List<Vector3>();
-			var origins = new List<Vector4>();
+			var centers = new List<Vector4>();
 
 			var unit = data.UnitLength;
 
@@ -106,37 +106,37 @@ namespace VoxelSystem {
 
 					// back
 					CalculatePlane(
-						vertices, normals, origins, uvs, triangles,
+						vertices, normals, centers, uvs, triangles,
 						center, hback, right, up, Vector3.back
 					);
 
 					// right
 					CalculatePlane(
-						vertices, normals, origins, uvs, triangles,
+						vertices, normals, centers, uvs, triangles,
 						center, hright, forward, up, Vector3.right
 					);
 
 					// forward
 					CalculatePlane(
-						vertices, normals, origins, uvs, triangles,
+						vertices, normals, centers, uvs, triangles,
 						center, hforward, left, up, Vector3.forward
 					);
 
 					// left
 					CalculatePlane(
-						vertices, normals, origins, uvs, triangles,
+						vertices, normals, centers, uvs, triangles,
 						center, hleft, back, up, Vector3.left
 					);
 
 					// up
 					CalculatePlane(
-						vertices, normals, origins, uvs, triangles,
+						vertices, normals, centers, uvs, triangles,
 						center, hup, right, forward, Vector3.up
 					);
 
 					// down
 					CalculatePlane(
-						vertices, normals, origins, uvs, triangles,
+						vertices, normals, centers, uvs, triangles,
 						center, hbottom, right, back, Vector3.down
 					);
 
@@ -148,29 +148,29 @@ namespace VoxelSystem {
 			mesh.vertices = vertices.ToArray();
 			mesh.uv = uvs.ToArray();
 			mesh.normals = normals.ToArray();
-			mesh.tangents = origins.ToArray();
+			mesh.tangents = centers.ToArray();
 			mesh.SetTriangles(triangles.ToArray(), 0);
 			mesh.RecalculateBounds();
 			return mesh;
 		}
 
 		public static void CalculatePlane (
-			List<Vector3> vertices, List<Vector3> normals, List<Vector4> origins, List<Vector2> uvs, List<int> triangles,
-			Vector3 origin, Vector3 offset, Vector3 right, Vector3 up, Vector3 normal, int rSegments = 2, int uSegments = 2
+			List<Vector3> vertices, List<Vector3> normals, List<Vector4> centers, List<Vector2> uvs, List<int> triangles,
+			Vector3 center, Vector3 offset, Vector3 right, Vector3 up, Vector3 normal, int rSegments = 2, int uSegments = 2
 		) {
 			float rInv = 1f / (rSegments - 1);
 			float uInv = 1f / (uSegments - 1);
 
 			int triangleOffset = vertices.Count;
 
-			var transformed = origin + offset;
+			var transformed = center + offset;
 			for(int y = 0; y < uSegments; y++) {
 				float ru = y * uInv;
 				for(int x = 0; x < rSegments; x++) {
 					float rr = x * rInv;
 					vertices.Add(transformed + right * (rr - 0.5f) + up * (ru - 0.5f));
 					normals.Add(normal);
-					origins.Add(origin);
+					centers.Add(center);
 					uvs.Add(new Vector2(rr, ru));
 				}
 
