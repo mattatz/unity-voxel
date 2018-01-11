@@ -26,7 +26,7 @@ float tri_hit(float3 ori, float3 dir, float3 a, float3 b, float3 c) {
     float3 P = cross(dir, e2);
     float det = dot(e1, P);
 
-    const float epsilon = 0.00000001;
+    const float epsilon = 1e-12;
 
     // if (det > -epsilon && det < epsilon) return false;
     if(abs(det) < epsilon) return -1;
