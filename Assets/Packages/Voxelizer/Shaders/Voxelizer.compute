@@ -1,11 +1,9 @@
 ﻿#pragma kernel Voxelize
 
+#define THREAD [numthreads(8, 8, 1)]
+
 #include "UnityCG.cginc"
 #include "./Voxel.cginc"
-
-#define THREAD_X 8
-#define THREAD_Y 8
-#define THREAD_Z 1
 
 CBUFFER_START(VoxelParams)
 
@@ -63,7 +61,7 @@ float3 get_voxel_position(int x, int y, int z) {
     );
 }
 
-[numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
+THREAD
 void Voxelize (uint3 id : SV_DispatchThreadID)
 {
     int x = (int)id.x;
@@ -122,6 +120,9 @@ void Voxelize (uint3 id : SV_DispatchThreadID)
                     break;
                 } 
             }
+        } else {
+            v.position = get_voxel_position(x, y, z);
+            _VoxelBuffer[vid] = v;
         }
     }
 

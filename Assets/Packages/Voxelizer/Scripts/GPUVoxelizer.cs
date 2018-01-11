@@ -19,11 +19,17 @@ namespace VoxelSystem {
 		protected const string kVertBufferKey = "_VertBuffer", kTriBufferKey = "_TriBuffer";
 		protected const string kVoxelBufferKey = "_VoxelBuffer";
 
-		public static GPUVoxelData Voxelize(ComputeShader voxelizer, Mesh mesh, int count = 32) {
+        public static int GetNearPow2(float n)
+        {
+            if(n <= 0) {
+                return 0;
+            }
+            var k = Mathf.CeilToInt(Mathf.Log(n, 2));
+            return (int)Mathf.Pow(2, k);
+        }
+
+		public static GPUVoxelData Voxelize(ComputeShader voxelizer, Mesh mesh, int count = 32, bool pow2 = false) {
 			mesh.RecalculateBounds();
-			var bounds = mesh.bounds;
-			var maxLength = Mathf.Max(bounds.size.x, Mathf.Max(bounds.size.y, bounds.size.z));
-			var unit = maxLength / count;
 
 			var vertices = mesh.vertices;
 			var vertBuffer = new ComputeBuffer(vertices.Length, Marshal.SizeOf(typeof(Vector3)));
@@ -33,24 +39,30 @@ namespace VoxelSystem {
 			var triBuffer = new ComputeBuffer(triangles.Length, Marshal.SizeOf(typeof(int)));
 			triBuffer.SetData(triangles);
 
-			var voxelBuffer = new ComputeBuffer(
-				Mathf.CeilToInt((bounds.size.x / maxLength * count)) * 
-				Mathf.CeilToInt((bounds.size.y / maxLength * count)) * 
-				Mathf.CeilToInt((bounds.size.z / maxLength * count)),
-				Marshal.SizeOf(typeof(Voxel_t))
-			);
+			var bounds = mesh.bounds;
+			var maxLength = Mathf.Max(bounds.size.x, Mathf.Max(bounds.size.y, bounds.size.z));
+			var unit = maxLength / count;
+			var size = bounds.size;
 
+            int w, h, d;
+            if(!pow2)
+            {
+                w = Mathf.CeilToInt(size.x / unit);
+                h = Mathf.CeilToInt(size.y / unit);
+                d = Mathf.CeilToInt(size.z / unit);
+            } else  {
+                w = GetNearPow2(size.x / unit);
+                h = GetNearPow2(size.y / unit);
+                d = GetNearPow2(size.z / unit);
+            }
+
+			var voxelBuffer = new ComputeBuffer(w * h * d, Marshal.SizeOf(typeof(Voxel_t)));
 			var kernel = new Kernel(voxelizer, kKernelKey);
 
 			// send bounds
 			voxelizer.SetVector(kStartKey, bounds.min);
 			voxelizer.SetVector(kEndKey, bounds.max);
 			voxelizer.SetVector(kSizeKey, bounds.size);
-
-			var size = bounds.size;
-			var w = Mathf.CeilToInt(size.x / unit);
-			var h = Mathf.CeilToInt(size.y / unit);
-			var d = Mathf.CeilToInt(size.z / unit);
 
 			voxelizer.SetFloat(kUnitKey, unit);
 			voxelizer.SetFloat(kHalfUnitKey, unit * 0.5f);
@@ -64,7 +76,6 @@ namespace VoxelSystem {
 			voxelizer.SetBuffer(kernel.Index, kTriBufferKey, triBuffer);
 			voxelizer.SetBuffer(kernel.Index, kVoxelBufferKey, voxelBuffer);
 
-			// Debug.Log(w + " , " + h);
 			voxelizer.Dispatch(kernel.Index, w / (int)kernel.ThreadX + 1, h / (int)kernel.ThreadY + 1, (int)kernel.ThreadZ);
 
 			// dispose

@@ -18,7 +18,7 @@ StructuredBuffer<Voxel> _VoxelBuffer;
 StructuredBuffer<int> _IndexBuffer;
 
 RWStructuredBuffer<VParticle> _ParticleBuffer;
-int _ParticleCount;
+uint _ParticleCount;
 
 float2 _DT;
 
@@ -30,7 +30,7 @@ half2 _Spin; // max_spin * dt, speed_to_spin * dt
 half2 _NoiseParams; // frequency, amplitude * dt
 float3 _NoiseOffset;
 
-int _Threshold;
+uint _Threshold;
 
 // Deterministic random rotation axis.
 float3 RotationAxis(float2 uv)

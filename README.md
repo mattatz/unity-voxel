@@ -5,13 +5,19 @@ Voxelize mesh algorithm in Unity. (includes GPU and CPU voxelizers.)
 
 ![Demo](https://raw.githubusercontent.com/mattatz/unity-voxel/master/Captures/Demo.gif)
 
-## GPUVoxelParticleSystem.scene
+## GPUVoxelParticleSystem
 
 ![GPUVoxelParticleSystem](https://raw.githubusercontent.com/mattatz/unity-voxel/master/Captures/GPUVoxelParticleSystem.gif)
 
-the Demo for GPU Particle with Geometry shader. (only tested on windows10 (GTX 1060))
+the Demo for GPU Particle with geometry shader. (only tested on windows10 (GTX 1060))
 
 Inspired by Keijiro Takahashi works⚡️ [StandardGeometryShader](https://github.com/keijiro/StandardGeometryShader) & [KvantSpray]( https://github.com/keijiro/KvantSpray)
+
+## GPUVoxelMosaic
+
+![GPUVoxelMosaic](https://raw.githubusercontent.com/mattatz/unity-voxel/master/Captures/GPUVoxelMosaic.gif)
+
+the Demo to update the resolution of voxels in realtime. (only tested on windows10 (GTX 1060))
 
 ## Usage
 
