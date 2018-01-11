@@ -15,6 +15,8 @@ Inspired by Keijiro Takahashi works⚡️ [StandardGeometryShader](https://githu
 
 ## GPUVoxelMosaic
 
+![GPUVoxelMosaicLevels](https://raw.githubusercontent.com/mattatz/unity-voxel/master/Captures/GPUVoxelMosaicLevels.gif)
+
 ![GPUVoxelMosaic](https://raw.githubusercontent.com/mattatz/unity-voxel/master/Captures/GPUVoxelMosaic.gif)
 
 the Demo to update the resolution of voxels in realtime. (only tested on windows10 (GTX 1060))
