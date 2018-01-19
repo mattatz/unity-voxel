@@ -4,6 +4,7 @@
 
 struct Voxel {
 	float3 position;
+    float2 uv;
 	bool flag;
 };
 

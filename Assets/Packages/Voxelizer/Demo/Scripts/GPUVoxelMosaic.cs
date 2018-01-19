@@ -66,7 +66,7 @@ namespace VoxelSystem.Demo
             levels = new GPUVoxelData[resolutions];
             for(int i = 0; i < resolutions; i++)
             {
-                levels[i] = GPUVoxelizer.Voxelize(voxelizer, mesh, count >> i, true);
+                levels[i] = GPUVoxelizer.Voxelize(voxelizer, mesh, count >> i, true, true);
             }
 
             var pointMesh = BuildPoints(levels[0]);

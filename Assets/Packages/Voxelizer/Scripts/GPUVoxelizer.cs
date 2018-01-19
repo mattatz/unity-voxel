@@ -11,13 +11,14 @@ namespace VoxelSystem {
 
 	public class GPUVoxelizer {
 
-		protected const string kKernelKey = "Voxelize";
+		protected const string kVolumeKernelKey = "Volume", kSurfaceKernelKey = "Surface", kTextureKernelKey = "BuildTexture3D";
 		protected const string kStartKey = "_Start", kEndKey = "_End", kSizeKey = "_Size";
 		protected const string kUnitKey = "_Unit", kHalfUnitKey = "_HalfUnit";
 		protected const string kWidthKey = "_Width", kHeightKey = "_Height", kDepthKey = "_Depth";
 		protected const string kTriCountKey = "_TrianglesCount";
-		protected const string kVertBufferKey = "_VertBuffer", kTriBufferKey = "_TriBuffer";
-		protected const string kVoxelBufferKey = "_VoxelBuffer";
+		protected const string kVertBufferKey = "_VertBuffer", kUVBufferKey = "_UVBuffer", kTriBufferKey = "_TriBuffer";
+		protected const string kVoxelBufferKey = "_VoxelBuffer", kVoxelTextureKey = "_VoxelTexture";
+        protected const string kColorTextureKey = "_ColorTexture";
 
         public static int GetNearPow2(float n)
         {
@@ -28,12 +29,19 @@ namespace VoxelSystem {
             return (int)Mathf.Pow(2, k);
         }
 
-		public static GPUVoxelData Voxelize(ComputeShader voxelizer, Mesh mesh, int count = 32, bool pow2 = false) {
+		public static GPUVoxelData Voxelize(ComputeShader voxelizer, Mesh mesh, int count = 32, bool volume = true, bool pow2 = false) {
 			mesh.RecalculateBounds();
 
 			var vertices = mesh.vertices;
 			var vertBuffer = new ComputeBuffer(vertices.Length, Marshal.SizeOf(typeof(Vector3)));
 			vertBuffer.SetData(vertices);
+
+			var uvBuffer = new ComputeBuffer(vertBuffer.count, Marshal.SizeOf(typeof(Vector2)));
+            if(mesh.uv.Length > 0)
+            {
+                var uv = mesh.uv;
+                uvBuffer.SetData(uv);
+            }
 
 			var triangles = mesh.triangles;
 			var triBuffer = new ComputeBuffer(triangles.Length, Marshal.SizeOf(typeof(int)));
@@ -57,7 +65,7 @@ namespace VoxelSystem {
             }
 
 			var voxelBuffer = new ComputeBuffer(w * h * d, Marshal.SizeOf(typeof(Voxel_t)));
-			var kernel = new Kernel(voxelizer, kKernelKey);
+			var kernel = new Kernel(voxelizer, volume ? kVolumeKernelKey : kSurfaceKernelKey);
 
 			// send bounds
 			voxelizer.SetVector(kStartKey, bounds.min);
@@ -72,6 +80,7 @@ namespace VoxelSystem {
 
 			// send mesh data
 			voxelizer.SetBuffer(kernel.Index, kVertBufferKey, vertBuffer);
+			voxelizer.SetBuffer(kernel.Index, kUVBufferKey, uvBuffer);
 			voxelizer.SetInt(kTriCountKey, triBuffer.count);
 			voxelizer.SetBuffer(kernel.Index, kTriBufferKey, triBuffer);
 			voxelizer.SetBuffer(kernel.Index, kVoxelBufferKey, voxelBuffer);
@@ -80,12 +89,13 @@ namespace VoxelSystem {
 
 			// dispose
 			vertBuffer.Release();
+			uvBuffer.Release();
 			triBuffer.Release();
 
 			return new GPUVoxelData(voxelBuffer, w, h, d, unit);
 		}
 
-		public static Mesh Build(GPUVoxelData data) {
+		public static Mesh Build(GPUVoxelData data, bool useUV = false) {
 			var vertices = new List<Vector3>();
 			var uvs = new List<Vector2>();
 			var triangles = new List<int>();
@@ -113,42 +123,40 @@ namespace VoxelSystem {
 			for(int i = 0, n = voxels.Length; i < n; i++) {
 				var v = voxels[i];
 				if(v.flag) {
-					var center = v.position;
-
 					// back
 					CalculatePlane(
 						vertices, normals, centers, uvs, triangles,
-						center, hback, right, up, Vector3.back
+						v, useUV, hback, right, up, Vector3.back
 					);
 
 					// right
 					CalculatePlane(
 						vertices, normals, centers, uvs, triangles,
-						center, hright, forward, up, Vector3.right
+						v, useUV, hright, forward, up, Vector3.right
 					);
 
 					// forward
 					CalculatePlane(
 						vertices, normals, centers, uvs, triangles,
-						center, hforward, left, up, Vector3.forward
+						v, useUV, hforward, left, up, Vector3.forward
 					);
 
 					// left
 					CalculatePlane(
 						vertices, normals, centers, uvs, triangles,
-						center, hleft, back, up, Vector3.left
+						v, useUV, hleft, back, up, Vector3.left
 					);
 
 					// up
 					CalculatePlane(
 						vertices, normals, centers, uvs, triangles,
-						center, hup, right, forward, Vector3.up
+						v, useUV, hup, right, forward, Vector3.up
 					);
 
 					// down
 					CalculatePlane(
 						vertices, normals, centers, uvs, triangles,
-						center, hbottom, right, back, Vector3.down
+						v, useUV, hbottom, right, back, Vector3.down
 					);
 
 				}
@@ -165,14 +173,46 @@ namespace VoxelSystem {
 			return mesh;
 		}
 
-		public static void CalculatePlane (
+        public static RenderTexture BuildTexture3D(ComputeShader voxelizer, GPUVoxelData data, RenderTextureFormat format, FilterMode filterMode)
+        {
+            return BuildTexture3D(voxelizer, data, Texture2D.whiteTexture, format, filterMode);
+        }
+
+        public static RenderTexture BuildTexture3D(ComputeShader voxelizer, GPUVoxelData data, Texture2D texture, RenderTextureFormat format, FilterMode filterMode)
+        {
+            var volume = CreateTexture3D(data, format, filterMode);
+
+            var kernel = new Kernel(voxelizer, kTextureKernelKey);
+			voxelizer.SetBuffer(kernel.Index, kVoxelBufferKey, data.Buffer);
+			voxelizer.SetTexture(kernel.Index, kVoxelTextureKey, volume);
+			voxelizer.SetTexture(kernel.Index, kColorTextureKey, texture);
+			voxelizer.Dispatch(kernel.Index, data.Width / (int)kernel.ThreadX + 1, data.Height / (int)kernel.ThreadY + 1, data.Depth / (int)kernel.ThreadZ + 1);
+
+            return volume;
+        }
+
+        static RenderTexture CreateTexture3D(GPUVoxelData data, RenderTextureFormat format, FilterMode filterMode)
+        {
+            var texture = new RenderTexture(data.Width, data.Height, data.Depth, format, RenderTextureReadWrite.Default);
+            texture.dimension = TextureDimension.Tex3D;
+            texture.volumeDepth = data.Depth;
+            texture.enableRandomWrite = true;
+            texture.filterMode = filterMode;
+            texture.wrapMode = TextureWrapMode.Clamp;
+            texture.Create();
+
+            return texture;
+        }
+
+		static void CalculatePlane (
 			List<Vector3> vertices, List<Vector3> normals, List<Vector4> centers, List<Vector2> uvs, List<int> triangles,
-			Vector3 center, Vector3 offset, Vector3 right, Vector3 up, Vector3 normal, int rSegments = 2, int uSegments = 2
+			Voxel_t voxel, bool useUV, Vector3 offset, Vector3 right, Vector3 up, Vector3 normal, int rSegments = 2, int uSegments = 2
 		) {
 			float rInv = 1f / (rSegments - 1);
 			float uInv = 1f / (uSegments - 1);
 
 			int triangleOffset = vertices.Count;
+            var center = voxel.position;
 
 			var transformed = center + offset;
 			for(int y = 0; y < uSegments; y++) {
@@ -182,7 +222,13 @@ namespace VoxelSystem {
 					vertices.Add(transformed + right * (rr - 0.5f) + up * (ru - 0.5f));
 					normals.Add(normal);
 					centers.Add(center);
-					uvs.Add(new Vector2(rr, ru));
+                    if(useUV)
+                    {
+					    uvs.Add(voxel.uv);
+                    } else
+                    {
+					    uvs.Add(new Vector2(rr, ru));
+                    }
 				}
 
 				if(y < uSegments - 1) {

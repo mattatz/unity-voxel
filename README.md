@@ -28,13 +28,23 @@ with GPU Voxelizer (recommended)
 GPUVoxelData data = GPUVoxelizer.Voxelize(
     voxelizer,  // ComputeShader (Voxelizer.compute)
     mesh,       // a target mesh
-    64          // # of voxels for largest AABB bounds
+    64,         // # of voxels for largest AABB bounds
+    true        // flag to fill in volume or not; if set flag to false, sample a surface only
 );
 
 // build voxel cubes integrated mesh
 GetComponent<MeshFilter>().sharedMesh = GPUVoxelizer.Build(data);
 
-// release a voxel buffer
+// build 3D texture represent a volume by voxels.
+RenderTexture volumeTexture = GPUVoxelizer.BuildTexture3D(
+  voxelizer,
+  data,
+  texture,    // Texture2D to color voxels based on uv coordinates in voxels
+  RenderTextureFormat.ARGBFloat,
+  FilterMode.Bilinear
+);
+
+// need to release a voxel buffer
 data.Dispose();
 ```
 
