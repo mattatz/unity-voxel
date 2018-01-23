@@ -21,6 +21,14 @@ Inspired by Keijiro Takahashi works⚡️ [StandardGeometryShader](https://githu
 
 the Demo to update the resolution of voxels in realtime. (only tested on windows10 (GTX 1060))
 
+## GPUVoxelSkinnedMesh
+
+![GPUVoxelSkinnedMesh](https://raw.githubusercontent.com/mattatz/unity-voxel/master/Captures/GPUVoxelSkinnedMesh.gif)
+
+Sample a mesh from SkinnedRenderer in every frame and voxelize it in realtime.
+
+the human model and animation from [asset store](https://assetstore.unity.com/packages/3d/animations/raw-mocap-data-for-mecanim-5330).
+
 ## Usage
 
 with GPU Voxelizer (recommended)
