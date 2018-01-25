@@ -13,7 +13,7 @@ namespace VoxelSystem {
 
 		protected const string kVolumeKernelKey = "Volume", kSurfaceKernelKey = "Surface", kTextureKernelKey = "BuildTexture3D";
 		protected const string kStartKey = "_Start", kEndKey = "_End", kSizeKey = "_Size";
-		protected const string kUnitKey = "_Unit", kHalfUnitKey = "_HalfUnit";
+		protected const string kUnitKey = "_Unit", kInvUnitKey = "_InvUnit", kHalfUnitKey = "_HalfUnit";
 		protected const string kWidthKey = "_Width", kHeightKey = "_Height", kDepthKey = "_Depth";
 		protected const string kTriCountKey = "_TrianglesCount";
 		protected const string kVertBufferKey = "_VertBuffer", kUVBufferKey = "_UVBuffer", kTriBufferKey = "_TriBuffer";
@@ -73,6 +73,7 @@ namespace VoxelSystem {
 			voxelizer.SetVector(kSizeKey, bounds.size);
 
 			voxelizer.SetFloat(kUnitKey, unit);
+			voxelizer.SetFloat(kInvUnitKey, 1f / unit);
 			voxelizer.SetFloat(kHalfUnitKey, unit * 0.5f);
 			voxelizer.SetInt(kWidthKey, w);
 			voxelizer.SetInt(kHeightKey, h);

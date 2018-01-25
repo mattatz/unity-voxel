@@ -10,7 +10,7 @@
 CBUFFER_START(VoxelParams)
 
 float3 _Start, _End, _Size;
-float _Unit, _HalfUnit;
+float _Unit, _InvUnit, _HalfUnit;
 
 int _Width, _Height, _Depth;
 
@@ -88,7 +88,7 @@ void voxelize_surface(int x, int y)
         float u, v;
         float dist = tri_hit(ori, dir, v0, v1, v2, u, v);
         if(dist >= 0.0) {
-            int z = dist / _Unit;
+            int z = dist * _InvUnit;
             uint vid = get_voxel_index(x, y, z);
             Voxel voxel;
 
@@ -97,7 +97,7 @@ void voxelize_surface(int x, int y)
             float2 uv2 = _UVBuffer[c];
 
             voxel.position = get_voxel_position(x, y, z);
-            voxel.uv = lerp(uv0, uv1, u) + lerp(uv0, uv2, v);
+            voxel.uv = u * uv1 + v * uv2 + (1.0 - u - v) * uv0;
             voxel.flag = true;
             _VoxelBuffer[vid] = voxel;
         }
