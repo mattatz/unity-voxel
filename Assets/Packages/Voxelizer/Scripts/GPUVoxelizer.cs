@@ -31,7 +31,11 @@ namespace VoxelSystem {
 
 		public static GPUVoxelData Voxelize(ComputeShader voxelizer, Mesh mesh, int count = 32, bool volume = true, bool pow2 = false) {
 			mesh.RecalculateBounds();
+            return Voxelize(voxelizer, mesh, mesh.bounds, count, volume, pow2);
+		}
 
+        public static GPUVoxelData Voxelize(ComputeShader voxelizer, Mesh mesh, Bounds bounds, int count = 32, bool volume = true, bool pow2 = false)
+        {
 			var vertices = mesh.vertices;
 			var vertBuffer = new ComputeBuffer(vertices.Length, Marshal.SizeOf(typeof(Vector3)));
 			vertBuffer.SetData(vertices);
@@ -47,7 +51,6 @@ namespace VoxelSystem {
 			var triBuffer = new ComputeBuffer(triangles.Length, Marshal.SizeOf(typeof(int)));
 			triBuffer.SetData(triangles);
 
-			var bounds = mesh.bounds;
 			var maxLength = Mathf.Max(bounds.size.x, Mathf.Max(bounds.size.y, bounds.size.z));
 			var unit = maxLength / count;
 			var size = bounds.size;
@@ -65,6 +68,8 @@ namespace VoxelSystem {
             }
 
 			var voxelBuffer = new ComputeBuffer(w * h * d, Marshal.SizeOf(typeof(Voxel_t)));
+            var voxels = new Voxel_t[voxelBuffer.count];
+            voxelBuffer.SetData(voxels); // initialize voxels explicitly
 			var kernel = new Kernel(voxelizer, volume ? kVolumeKernelKey : kSurfaceKernelKey);
 
 			// send bounds
@@ -94,7 +99,7 @@ namespace VoxelSystem {
 			triBuffer.Release();
 
 			return new GPUVoxelData(voxelBuffer, w, h, d, unit);
-		}
+        }
 
 		public static Mesh Build(GPUVoxelData data, bool useUV = false) {
 			var vertices = new List<Vector3>();

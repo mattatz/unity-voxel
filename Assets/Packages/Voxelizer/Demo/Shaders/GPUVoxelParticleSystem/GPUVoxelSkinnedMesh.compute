@@ -3,7 +3,6 @@
 #pragma kernel Update
 
 #define THREAD [numthreads(8, 1, 1)]
-#define DISCARD_OVERFLOW if (id.x >= _ParticleCount) return;
 
 #include "../../../Shaders/Voxel.cginc"
 #include "Random.cginc"
@@ -14,6 +13,7 @@
 float _UnitLength;
 
 StructuredBuffer<Voxel> _VoxelBuffer;
+uint _VoxelCount;
 
 RWStructuredBuffer<VParticle> _ParticleBuffer;
 uint _ParticleCount;
@@ -21,32 +21,43 @@ uint _ParticleCount;
 THREAD
 void Setup (uint3 id : SV_DispatchThreadID)
 {
-    DISCARD_OVERFLOW
-
-    int vindex = id.x;
-    Voxel v = _VoxelBuffer[vindex];
+    if (id.x >= _ParticleCount) return;
 
     VParticle particle;
-    particle.position = v.position;
-    particle.size = float3(1, 1, 1) * (lerp(0, _UnitLength, (uint)v.flag));
     particle.rotation = QUATERNION_IDENTITY;
     particle.velocity = float3(0, 0, 0);
     particle.speed = 0;
+
+    uint vindex = id.x;
+    if (vindex < _VoxelCount)
+    {
+        Voxel v = _VoxelBuffer[vindex];
+        particle.position = v.position;
+        particle.size = float3(1, 1, 1) * (lerp(0, _UnitLength, (uint)v.flag));
+    } else
+    { 
+        particle.position = float3(0, 0, 0);
+        particle.size = float3(0, 0, 0);
+    }
     _ParticleBuffer[id.x] = particle;
 }
 
 THREAD
 void Update (uint3 id : SV_DispatchThreadID)
 {
-    DISCARD_OVERFLOW
+    uint index = id.x;
+    if (index >= _ParticleCount) return;
 
-    Voxel v = _VoxelBuffer[id.x];
-
-    VParticle particle;
-    particle = _ParticleBuffer[id.x];
-    float f01 = step(0.5, (uint)v.flag);
-    float3 size = f01 * float3(_UnitLength, _UnitLength, _UnitLength);
-    particle.position = v.position;
-    particle.size = size;
-    _ParticleBuffer[id.x] = particle;
+    VParticle particle = _ParticleBuffer[index];
+    if (index < _VoxelCount)
+    {
+        Voxel v = _VoxelBuffer[index];
+        float f01 = step(0.5, (uint)v.flag);
+        float3 size = f01 * float3(_UnitLength, _UnitLength, _UnitLength);
+        particle.position = v.position;
+        particle.size = size;
+    } else {
+        particle.size = float3(0, 0, 0);
+    }
+    _ParticleBuffer[index] = particle;
 }

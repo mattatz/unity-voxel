@@ -259,7 +259,7 @@ MonoBehaviour:
   type: 0
   mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
   voxelizer: {fileID: 7200000, guid: 5fdfd9c0be0cd42fca24f981cc152dd4, type: 3}
-  count: 64
+  count: 128
   useUV: 1
 --- !u!4 &1071422194
 Transform:
@@ -348,7 +348,7 @@ MonoBehaviour:
   mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
   texture: {fileID: 2800000, guid: a08960dd6e8274e7f8fca616e09c48ed, type: 3}
   voxelizer: {fileID: 7200000, guid: 5fdfd9c0be0cd42fca24f981cc152dd4, type: 3}
-  count: 32
+  count: 64
   voxelTex: {fileID: 0}
 --- !u!4 &1240650931
 Transform:

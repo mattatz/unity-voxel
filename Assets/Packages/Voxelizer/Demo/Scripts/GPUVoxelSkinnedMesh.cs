@@ -31,16 +31,17 @@ namespace VoxelSystem.Demo
 
         protected const string kSetupKernelKey = "Setup", kUpdateKernelKey = "Update";
 
-        protected const string kVoxelBufferKey = "_VoxelBuffer";
+        protected const string kVoxelBufferKey = "_VoxelBuffer", kVoxelCountKey = "_VoxelCount";
         protected const string kParticleBufferKey = "_ParticleBuffer", kParticleCountKey = "_ParticleCount";
         protected const string kUnitLengthKey = "_UnitLength";
 
         #endregion
 
-        GPUVoxelData data;
+        protected GPUVoxelData data;
 
         void Start () {
             var mesh = Sample();
+
             data = GPUVoxelizer.Voxelize(voxelizer, mesh, count, (type == MeshType.Volume));
             var pointMesh = BuildPoints(data);
             particleBuffer = new ComputeBuffer(pointMesh.vertexCount, Marshal.SizeOf(typeof(VParticle_t)));
@@ -51,10 +52,13 @@ namespace VoxelSystem.Demo
             _renderer = GetComponent<Renderer>();
             _renderer.GetPropertyBlock(block);
 
+            block.SetBuffer(kParticleBufferKey, particleBuffer);
+            _renderer.SetPropertyBlock(block);
+
             setupKernel = new Kernel(particleUpdate, kSetupKernelKey);
             updateKernel = new Kernel(particleUpdate, kUpdateKernelKey);
 
-            Setup(data);
+            Compute(setupKernel, data, Time.deltaTime);
         }
         
         void Update () {
@@ -66,8 +70,6 @@ namespace VoxelSystem.Demo
             data = GPUVoxelizer.Voxelize(voxelizer, mesh, count, (type == MeshType.Volume));
 
             Compute(updateKernel, data, Time.deltaTime);
-            block.SetBuffer(kParticleBufferKey, particleBuffer);
-            _renderer.SetPropertyBlock(block);
         }
 
         Mesh Sample()
@@ -92,19 +94,10 @@ namespace VoxelSystem.Demo
             }
         }
 
-        void Setup(GPUVoxelData data)
-        {
-            particleUpdate.SetBuffer(setupKernel.Index, kVoxelBufferKey, data.Buffer);
-            particleUpdate.SetBuffer(setupKernel.Index, kParticleBufferKey, particleBuffer);
-            particleUpdate.SetInt(kParticleCountKey, particleBuffer.count);
-            particleUpdate.SetFloat(kUnitLengthKey, data.UnitLength);
-
-            particleUpdate.Dispatch(setupKernel.Index, particleBuffer.count / (int)setupKernel.ThreadX + 1, (int)setupKernel.ThreadY, (int)setupKernel.ThreadZ);
-        }
-
         void Compute (Kernel kernel, GPUVoxelData data, float dt)
         {
             particleUpdate.SetBuffer(kernel.Index, kVoxelBufferKey, data.Buffer);
+            particleUpdate.SetInt(kVoxelCountKey, data.Buffer.count);
             particleUpdate.SetFloat(kUnitLengthKey, data.UnitLength);
 
             particleUpdate.SetBuffer(kernel.Index, kParticleBufferKey, particleBuffer);
