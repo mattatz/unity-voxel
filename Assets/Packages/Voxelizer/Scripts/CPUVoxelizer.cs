@@ -16,7 +16,7 @@ namespace VoxelSystem {
         }
     }
 
-    public class Voxelizer {
+    public class CPUVoxelizer {
 
         public class Triangle {
             public Vector3 a, b, c;
@@ -117,7 +117,7 @@ namespace VoxelSystem {
                 } else {
                     var from = Grid(results[i - 1].distance, unit);
                     var to = Grid(results[i].distance, unit);
-                    for(float distance = from; distance < to; distance += unit) {
+                    for(float distance = from; distance <= to; distance += unit) {
                         voxels.Add(new Voxel(ray.origin + distance * ray.direction, unit));
                     }
                 }

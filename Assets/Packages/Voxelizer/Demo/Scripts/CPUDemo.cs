@@ -13,7 +13,7 @@ namespace VoxelSystem.Demo {
         List<Voxel> voxels;
 
         void Start () {
-            voxels = Voxelizer.Voxelize(mesh, count);
+            voxels = CPUVoxelizer.Voxelize(mesh, count);
             voxels.ForEach(voxel => {
                 var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 cube.transform.parent = transform;
