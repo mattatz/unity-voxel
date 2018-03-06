@@ -1,14 +1,11 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
+
 using UnityEngine;
 
 namespace VoxelSystem {
-
-	public struct Voxel_t {
-		public Vector3 position;
-        public Vector2 uv;
-		public bool flag;
-	}
 
 	public class GPUVoxelData : System.IDisposable {
 

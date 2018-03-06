@@ -15,7 +15,7 @@ namespace VoxelSystem {
 		protected const string kStartKey = "_Start", kEndKey = "_End", kSizeKey = "_Size";
 		protected const string kUnitKey = "_Unit", kInvUnitKey = "_InvUnit", kHalfUnitKey = "_HalfUnit";
 		protected const string kWidthKey = "_Width", kHeightKey = "_Height", kDepthKey = "_Depth";
-		protected const string kTriCountKey = "_TrianglesCount";
+		protected const string kTriCountKey = "_TrianglesCount", kTriIndexesKey = "_TriangleIndexes";
 		protected const string kVertBufferKey = "_VertBuffer", kUVBufferKey = "_UVBuffer", kTriBufferKey = "_TriBuffer";
 		protected const string kVoxelBufferKey = "_VoxelBuffer", kVoxelTextureKey = "_VoxelTexture";
         protected const string kColorTextureKey = "_ColorTexture";
@@ -29,12 +29,12 @@ namespace VoxelSystem {
             return (int)Mathf.Pow(2, k);
         }
 
-		public static GPUVoxelData Voxelize(ComputeShader voxelizer, Mesh mesh, int count = 32, bool volume = true, bool pow2 = false) {
+		public static GPUVoxelData Voxelize(ComputeShader voxelizer, Mesh mesh, int resolution = 32, bool volume = true, bool pow2 = false) {
 			mesh.RecalculateBounds();
-            return Voxelize(voxelizer, mesh, mesh.bounds, count, volume, pow2);
+            return Voxelize(voxelizer, mesh, mesh.bounds, resolution, volume, pow2);
 		}
 
-        public static GPUVoxelData Voxelize(ComputeShader voxelizer, Mesh mesh, Bounds bounds, int count = 32, bool volume = true, bool pow2 = false)
+        public static GPUVoxelData Voxelize(ComputeShader voxelizer, Mesh mesh, Bounds bounds, int resolution = 32, bool volume = true, bool pow2 = false)
         {
 			var vertices = mesh.vertices;
 			var vertBuffer = new ComputeBuffer(vertices.Length, Marshal.SizeOf(typeof(Vector3)));
@@ -52,12 +52,16 @@ namespace VoxelSystem {
 			triBuffer.SetData(triangles);
 
 			var maxLength = Mathf.Max(bounds.size.x, Mathf.Max(bounds.size.y, bounds.size.z));
-			var unit = maxLength / count;
-			var size = bounds.size;
+			var unit = maxLength / resolution;
+            var hunit = unit * 0.5f;
+
+            // Extend (min & max) to voxelize boundary surface correctly.
+            var start = bounds.min - new Vector3(hunit, hunit, hunit);
+            var end = bounds.max + new Vector3(hunit, hunit, hunit);
+            var size = end - start;
 
             int w, h, d;
-            if(!pow2)
-            {
+            if(!pow2) {
                 w = Mathf.CeilToInt(size.x / unit);
                 h = Mathf.CeilToInt(size.y / unit);
                 d = Mathf.CeilToInt(size.z / unit);
@@ -70,28 +74,36 @@ namespace VoxelSystem {
 			var voxelBuffer = new ComputeBuffer(w * h * d, Marshal.SizeOf(typeof(Voxel_t)));
             var voxels = new Voxel_t[voxelBuffer.count];
             voxelBuffer.SetData(voxels); // initialize voxels explicitly
-			var kernel = new Kernel(voxelizer, volume ? kVolumeKernelKey : kSurfaceKernelKey);
 
 			// send bounds
-			voxelizer.SetVector(kStartKey, bounds.min);
-			voxelizer.SetVector(kEndKey, bounds.max);
-			voxelizer.SetVector(kSizeKey, bounds.size);
+			voxelizer.SetVector(kStartKey, start);
+			voxelizer.SetVector(kEndKey, end);
+			voxelizer.SetVector(kSizeKey, size);
 
 			voxelizer.SetFloat(kUnitKey, unit);
 			voxelizer.SetFloat(kInvUnitKey, 1f / unit);
-			voxelizer.SetFloat(kHalfUnitKey, unit * 0.5f);
+			voxelizer.SetFloat(kHalfUnitKey, hunit);
 			voxelizer.SetInt(kWidthKey, w);
 			voxelizer.SetInt(kHeightKey, h);
 			voxelizer.SetInt(kDepthKey, d);
 
 			// send mesh data
-			voxelizer.SetBuffer(kernel.Index, kVertBufferKey, vertBuffer);
-			voxelizer.SetBuffer(kernel.Index, kUVBufferKey, uvBuffer);
+			var surfaceKer = new Kernel(voxelizer, kSurfaceKernelKey);
+			voxelizer.SetBuffer(surfaceKer.Index, kVertBufferKey, vertBuffer);
+			voxelizer.SetBuffer(surfaceKer.Index, kUVBufferKey, uvBuffer);
 			voxelizer.SetInt(kTriCountKey, triBuffer.count);
-			voxelizer.SetBuffer(kernel.Index, kTriBufferKey, triBuffer);
-			voxelizer.SetBuffer(kernel.Index, kVoxelBufferKey, voxelBuffer);
+            var indexes = triBuffer.count / 3;
+			voxelizer.SetInt(kTriIndexesKey, indexes);
+			voxelizer.SetBuffer(surfaceKer.Index, kTriBufferKey, triBuffer);
+			voxelizer.SetBuffer(surfaceKer.Index, kVoxelBufferKey, voxelBuffer);
+			voxelizer.Dispatch(surfaceKer.Index, indexes / (int)surfaceKer.ThreadX + 1, (int)surfaceKer.ThreadY, (int)surfaceKer.ThreadZ);
 
-			voxelizer.Dispatch(kernel.Index, w / (int)kernel.ThreadX + 1, h / (int)kernel.ThreadY + 1, (int)kernel.ThreadZ);
+            if(volume)
+            {
+			    var volumeKer = new Kernel(voxelizer, kVolumeKernelKey);
+                voxelizer.SetBuffer(volumeKer.Index, kVoxelBufferKey, voxelBuffer);
+                voxelizer.Dispatch(volumeKer.Index, w / (int)volumeKer.ThreadX + 1, h / (int)volumeKer.ThreadY + 1, (int)surfaceKer.ThreadZ);
+            }
 
 			// dispose
 			vertBuffer.Release();
@@ -100,10 +112,6 @@ namespace VoxelSystem {
 
 			return new GPUVoxelData(voxelBuffer, w, h, d, unit);
         }
-
-		public static Mesh Build(GPUVoxelData data, bool useUV = false) {
-            return VoxelMesh.Build(data.GetData(), data.UnitLength, useUV);
-		}
 
         public static RenderTexture BuildTexture3D(ComputeShader voxelizer, GPUVoxelData data, RenderTextureFormat format, FilterMode filterMode)
         {

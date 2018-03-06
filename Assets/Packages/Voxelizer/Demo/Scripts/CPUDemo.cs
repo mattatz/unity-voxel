@@ -6,32 +6,20 @@ using System.Collections.Generic;
 
 namespace VoxelSystem.Demo {
 
+    [RequireComponent (typeof(MeshFilter))]
     public class CPUDemo : MonoBehaviour {
 
 		[SerializeField] protected Mesh mesh;
-        [SerializeField] int count = 10;
-        List<Voxel> voxels;
+        [SerializeField] protected int resolution = 24;
+        [SerializeField] protected bool useUV = false;
 
         void Start () {
-            voxels = CPUVoxelizer.Voxelize(mesh, count);
-            voxels.ForEach(voxel => {
-                var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                cube.transform.parent = transform;
-                cube.transform.localPosition = voxel.position;
-                cube.transform.localScale = voxel.size * Vector3.one;
-                cube.transform.localRotation = Quaternion.identity;
-            });
-        }
-        
-        // void Update () {}
+            List<Voxel_t> voxels;
+            float unit;
+            CPUVoxelizer.Voxelize(mesh, resolution, out voxels, out unit);
 
-        void OnDrawGizmos () {
-            if (voxels == null) return;
-
-            Gizmos.matrix = transform.localToWorldMatrix;
-            voxels.ForEach(voxel => {
-                Gizmos.DrawCube(voxel.position, voxel.size * Vector3.one);
-            });
+            var filter = GetComponent<MeshFilter>();
+            filter.sharedMesh = VoxelMesh.Build(voxels.ToArray(), unit, useUV);
         }
 
     }

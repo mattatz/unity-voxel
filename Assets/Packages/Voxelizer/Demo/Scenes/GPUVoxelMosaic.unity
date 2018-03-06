@@ -148,7 +148,6 @@ MonoBehaviour:
   count: 128
   speedScaleMin: 2.2
   speedScaleMax: 7.2
-  threshold: 1
   frequency: 25
   level: 0
   lineMat: {fileID: 2100000, guid: 87476dd3b7809bf48813b25a281da62d, type: 2}
@@ -281,7 +280,7 @@ Camera:
   m_TargetDisplay: 0
   m_TargetEye: 3
   m_HDR: 1
-  m_AllowMSAA: 1
+  m_AllowMSAA: 0
   m_AllowDynamicResolution: 0
   m_ForceIntoRT: 0
   m_OcclusionCulling: 1

@@ -22,7 +22,6 @@ uint _ParticleCount;
 half2 _Speed; // min, max
 
 float2 _DT;
-uint _Threshold;
 
 uint3 GetPosition(uint index) {
     uint3 position;
@@ -91,7 +90,7 @@ VParticle GetMosaicParticle(uint id, uint level)
 
     Voxel v = _VoxelBuffer[vindex];
     particle.position = lerp(particle.position, v.position, dt);
-    float3 size = v.flag ? float3(_UnitLength, _UnitLength, _UnitLength) : float3(0, 0, 0);
+    float3 size = v.fill ? float3(_UnitLength, _UnitLength, _UnitLength) : float3(0, 0, 0);
     particle.size = lerp(particle.size, size, dt);
     return particle;
 }
@@ -103,21 +102,6 @@ void Update (uint3 id : SV_DispatchThreadID)
 
     Voxel v;
 
-    // VParticle particle = GetParticle(id.x);
-    uint3 p = GetPosition(id.x);
-
-    VParticle particle;
-
-    // particle = GetMosaicParticle(id.x, _Level);
-
-    if (p.y <= _Threshold)
-    {
-        particle = GetMosaicParticle(id.x, _Level);
-    }
-    else
-    {
-        particle = _ParticleBuffer[id.x];
-    }
-
+    VParticle particle = GetMosaicParticle(id.x, _Level);
     _ParticleBuffer[id.x] = particle;
 }

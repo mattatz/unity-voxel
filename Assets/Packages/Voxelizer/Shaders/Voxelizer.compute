@@ -1,8 +1,6 @@
-﻿#pragma kernel Volume
-#pragma kernel Surface
+﻿#pragma kernel Surface
+#pragma kernel Volume
 #pragma kernel BuildTexture3D
-
-#define THREAD [numthreads(8, 8, 1)]
 
 #include "UnityCG.cginc"
 #include "./Voxel.cginc"
@@ -19,39 +17,194 @@ CBUFFER_END
 StructuredBuffer<float3> _VertBuffer;
 StructuredBuffer<float2> _UVBuffer;
 StructuredBuffer<int> _TriBuffer;
-int _TrianglesCount;
+int _TrianglesCount, _TriangleIndexes;
 
 RWStructuredBuffer<Voxel> _VoxelBuffer;
 
-float tri_hit(float3 ori, float3 dir, float3 a, float3 b, float3 c, out float u, out float v) {
-    float3 e1 = b - a;
-    float3 e2 = c - a;
-    float3 P = cross(dir, e2);
-    float det = dot(e1, P);
+struct AABB
+{
+    float3 min, max, center;
+};
 
-    const float epsilon = 1e-12;
+struct Plane
+{
+    float3 normal;
+    float distance;
+};
 
-    u = v = -1.0;
+void tri_barycentric(float3 p, float3 a, float3 b, float3 c, out float u, out float v, out float w)
+{
+    float3 v0 = b - a, v1 = c - a, v2 = p - a;
+    float d00 = dot(v0, v0);
+    float d01 = dot(v0, v1);
+    float d11 = dot(v1, v1);
+    float d20 = dot(v2, v0);
+    float d21 = dot(v2, v1);
+    float denom = 1.0 / (d00 * d11 - d01 * d01);
+    v = (d11 * d20 - d01 * d21) * denom;
+    w = (d00 * d21 - d01 * d20) * denom;
+    u = 1.0f - v - w;
+}
 
-    // if (det > -epsilon && det < epsilon) return false;
-    if(abs(det) < epsilon) return -1;
+float2 tri_barycentric_uv(float3 p, float3 va, float3 vb, float3 vc, float2 uva, float2 uvb, float2 uvc)
+{
+    float u, v, w;
+    tri_barycentric(p, va, vb, vc, u, v, w);
+    return uva * u + uvb * v + uvc * w;
+}
 
-    float invDet = 1.0 / det;
+bool intersects_plane_aabb(Plane pl, AABB aabb)
+{
+    float3 center = aabb.center;
+    float3 extents = aabb.max - center;
 
-    float3 T = ori - a;
-    u = dot(T, P) * invDet;
-    if (u < 0.0 || u > 1.0) return -1;
+    float r = extents.x * abs(pl.normal.x) + extents.y * abs(pl.normal.y) + extents.z * abs(pl.normal.z);
+    float s = dot(pl.normal, center) - pl.distance;
 
-    float3 Q = cross(T, e1);
-    v = dot(dir, Q * invDet);
-    if (v < 0.0 || u + v > 1.0) return -1;
+    return abs(s) <= r;
+}
 
-    float t = dot(e2, Q) * invDet;
-    if(t > epsilon) {
-        return t;
+bool intersects_tri_aabb(float3 va, float3 vb, float3 vc, AABB aabb)
+{
+    float p0, p1, p2, r;
+
+    float3 center = aabb.center, extents = aabb.max - center;
+
+    float3 v0 = va - center,
+        v1 = vb - center,
+        v2 = vc - center;
+
+    float3 f0 = v1 - v0,
+        f1 = v2 - v1,
+        f2 = v0 - v2;
+
+    float3 a00 = float3(0, -f0.z, f0.y),
+        a01 = float3(0, -f1.z, f1.y),
+        a02 = float3(0, -f2.z, f2.y),
+        a10 = float3(f0.z, 0, -f0.x),
+        a11 = float3(f1.z, 0, -f1.x),
+        a12 = float3(f2.z, 0, -f2.x),
+        a20 = float3(-f0.y, f0.x, 0),
+        a21 = float3(-f1.y, f1.x, 0),
+        a22 = float3(-f2.y, f2.x, 0);
+
+    // Test axis a00
+    p0 = dot(v0, a00);
+    p1 = dot(v1, a00);
+    p2 = dot(v2, a00);
+    r = extents.y * abs(f0.z) + extents.z * abs(f0.y);
+
+    if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
+    {
+        return false;
     }
 
-    return -1.0;
+    // Test axis a01
+    p0 = dot(v0, a01);
+    p1 = dot(v1, a01);
+    p2 = dot(v2, a01);
+    r = extents.y * abs(f1.z) + extents.z * abs(f1.y);
+
+    if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
+    {
+        return false;
+    }
+
+    // Test axis a02
+    p0 = dot(v0, a02);
+    p1 = dot(v1, a02);
+    p2 = dot(v2, a02);
+    r = extents.y * abs(f2.z) + extents.z * abs(f2.y);
+
+    if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
+    {
+        return false;
+    }
+
+    // Test axis a10
+    p0 = dot(v0, a10);
+    p1 = dot(v1, a10);
+    p2 = dot(v2, a10);
+    r = extents.x * abs(f0.z) + extents.z * abs(f0.x);
+    if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
+    {
+        return false;
+    }
+
+    // Test axis a11
+    p0 = dot(v0, a11);
+    p1 = dot(v1, a11);
+    p2 = dot(v2, a11);
+    r = extents.x * abs(f1.z) + extents.z * abs(f1.x);
+
+    if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
+    {
+        return false;
+    }
+
+    // Test axis a12
+    p0 = dot(v0, a12);
+    p1 = dot(v1, a12);
+    p2 = dot(v2, a12);
+    r = extents.x * abs(f2.z) + extents.z * abs(f2.x);
+
+    if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
+    {
+        return false;
+    }
+
+    // Test axis a20
+    p0 = dot(v0, a20);
+    p1 = dot(v1, a20);
+    p2 = dot(v2, a20);
+    r = extents.x * abs(f0.y) + extents.y * abs(f0.x);
+
+    if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
+    {
+        return false;
+    }
+
+    // Test axis a21
+    p0 = dot(v0, a21);
+    p1 = dot(v1, a21);
+    p2 = dot(v2, a21);
+    r = extents.x * abs(f1.y) + extents.y * abs(f1.x);
+
+    if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
+    {
+        return false;
+    }
+
+    // Test axis a22
+    p0 = dot(v0, a22);
+    p1 = dot(v1, a22);
+    p2 = dot(v2, a22);
+    r = extents.x * abs(f2.y) + extents.y * abs(f2.x);
+
+    if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
+    {
+        return false;
+    }
+
+    if (max(v0.x, max(v1.x, v2.x)) < -extents.x || min(v0.x, min(v1.x, v2.x)) > extents.x)
+    {
+        return false;
+    }
+
+    if (max(v0.y, max(v1.y, v2.y)) < -extents.y || min(v0.y, min(v1.y, v2.y)) > extents.y)
+    {
+        return false;
+    }
+
+    if (max(v0.z, max(v1.z, v2.z)) < -extents.z || min(v0.z, min(v1.z, v2.z)) > extents.z)
+    {
+        return false;
+    }
+
+    Plane pl;
+    pl.normal = normalize(cross(f1, f0));
+    pl.distance = dot(pl.normal, va);
+    return intersects_plane_aabb(pl, aabb);
 }
 
 int get_voxel_index(int x, int y, int z) {
@@ -66,94 +219,117 @@ float3 get_voxel_position(int x, int y, int z) {
     );
 }
 
-void voxelize_surface(int x, int y)
+[numthreads(8, 1, 1)]
+void Surface (uint3 id : SV_DispatchThreadID)
 {
-    float3 ori = float3(
-        _Start.x + _Unit * (float)x + _HalfUnit,
-        _Start.y + _Unit * (float)y + _HalfUnit,
-        _Start.z
-    );
-    float3 dir = float3(0, 0, 1);
+    int idx = (int)id.x;
+    if(idx >= _TriangleIndexes) return;
 
-    // check intersections
-    for(int i = 0; i < _TrianglesCount; i += 3) {
-        int a = _TriBuffer[i];
-        int b = _TriBuffer[i + 1];
-        int c = _TriBuffer[i + 2];
+    int ia = _TriBuffer[idx * 3];
+    int ib = _TriBuffer[idx * 3 + 1];
+    int ic = _TriBuffer[idx * 3 + 2];
 
-        float3 v0 = _VertBuffer[a];
-        float3 v1 = _VertBuffer[b];
-        float3 v2 = _VertBuffer[c];
+    float3 va = _VertBuffer[ia];
+    float3 vb = _VertBuffer[ib];
+    float3 vc = _VertBuffer[ic];
 
-        float u, v;
-        float dist = tri_hit(ori, dir, v0, v1, v2, u, v);
-        if(dist >= 0.0) {
-            int z = dist * _InvUnit;
-            uint vid = get_voxel_index(x, y, z);
-            Voxel voxel;
+    float2 uva = _UVBuffer[ia];
+    float2 uvb = _UVBuffer[ib];
+    float2 uvc = _UVBuffer[ic];
 
-            float2 uv0 = _UVBuffer[a];
-            float2 uv1 = _UVBuffer[b];
-            float2 uv2 = _UVBuffer[c];
+    float3 normal = cross((vb - va), (vc - vb));
+    bool front = dot(normal, float3(0, 0, 1)) < 0;
 
-            voxel.position = get_voxel_position(x, y, z);
-            voxel.uv = u * uv1 + v * uv2 + (1.0 - u - v) * uv0;
-            voxel.flag = true;
-            _VoxelBuffer[vid] = voxel;
+    float3 tbmin = min(min(va, vb), vc);
+    float3 tbmax = max(max(va, vb), vc);
+
+    float3 bmin = tbmin - _Start;
+    float3 bmax = tbmax - _Start;
+    int iminX = round(bmin.x / _Unit), iminY = round(bmin.y / _Unit), iminZ = round(bmin.z / _Unit);
+    int imaxX = round(bmax.x / _Unit), imaxY = round(bmax.y / _Unit), imaxZ = round(bmax.z / _Unit);
+
+    iminX = clamp(iminX, 0, _Width - 1);
+    iminY = clamp(iminY, 0, _Height - 1);
+    iminZ = clamp(iminZ, 0, _Depth - 1);
+    imaxX = clamp(imaxX, 0, _Width - 1);
+    imaxY = clamp(imaxY, 0, _Height - 1);
+    imaxZ = clamp(imaxZ, 0, _Depth - 1);
+
+    for(int x = iminX; x <= imaxX; x++) {
+        for(int y = iminY; y <= imaxY; y++) {
+            for(int z = iminZ; z <= imaxZ; z++) {
+                float3 center = float3(x, y, z) * _Unit + _Start;
+                AABB aabb;
+                aabb.min = center - _HalfUnit;
+                aabb.center = center;
+                aabb.max = center + _HalfUnit;
+                if(intersects_tri_aabb(va, vb, vc, aabb))
+                {
+                    uint vid = get_voxel_index(x, y, z);
+                    Voxel voxel = _VoxelBuffer[vid];
+                    voxel.position = get_voxel_position(x, y, z);
+                    voxel.uv = tri_barycentric_uv(voxel.position, va, vb, vc, uva, uvb, uvc);
+                    voxel.fill = true;
+                    voxel.front = voxel.front || front;
+                    _VoxelBuffer[vid] = voxel;
+                }
+            }
         }
     }
 }
 
-THREAD
+[numthreads(8, 8, 1)]
 void Volume (uint3 id : SV_DispatchThreadID)
 {
     int x = (int)id.x;
     int y = (int)id.y;
-
     if(x >= _Width) return;
     if(y >= _Height) return;
 
-    voxelize_surface(x, y);
+    for (int z = 0; z < _Depth; z++)
+    {
+        Voxel voxel = _VoxelBuffer[get_voxel_index(x, y, z)];
+        if (!voxel.fill) continue;
 
-    // fill in
-    for(int z = 0; z < _Depth; z++) {
-        uint vid = get_voxel_index(x, y, z);
-        Voxel v = _VoxelBuffer[vid];
-        if(v.flag) {
-            int start = z + 1;
-            for(int end = start; end < _Depth; end++) {
-                uint vid2 = get_voxel_index(x, y, end);
-                Voxel v2 = _VoxelBuffer[vid2];
-                if(v2.flag) {
-                    for(int z2 = start; z2 < end; z2++) {
-                        Voxel nv;
-                        nv.position = get_voxel_position(x, y, z2);
-                        nv.uv = v.uv;
-                        nv.flag = true;
-                        _VoxelBuffer[get_voxel_index(x, y, z2)] = nv;
-                    }
-                    z = end + 1;
-                    break;
-                } 
+        int ifront = z;
+        float2 uv = float2(0, 0);
+        for (; ifront < _Depth; ifront++) {
+            int vid = get_voxel_index(x, y, ifront);
+            if (!is_front_voxel(_VoxelBuffer[vid])) {
+                break;
             }
-        } else {
-            v.position = get_voxel_position(x, y, z);
-            _VoxelBuffer[vid] = v;
+            uv = _VoxelBuffer[vid].uv;
         }
+
+        if(ifront >= _Depth) return;
+
+        int iback = ifront;
+
+        // step forward to cavity
+        for (; iback < _Depth &&  is_cavity_voxel(_VoxelBuffer[get_voxel_index(x, y, iback)]); iback++) {}
+
+        if (iback >= _Depth) return;
+
+        // check if iback is back voxel
+        if (is_back_voxel(_VoxelBuffer[get_voxel_index(x, y, iback)])) {
+            // step forward to back face
+            for (; iback < _Depth && is_back_voxel(_VoxelBuffer[get_voxel_index(x, y, iback)]); iback++) {}
+        }
+
+        // fill from ifront to iback
+        for(int z2 = ifront; z2 < iback; z2++)
+        {
+            Voxel v;
+            v.position = get_voxel_position(x, y, z2);
+            v.uv = uv;
+            v.fill = true;
+            v.front = false;
+            _VoxelBuffer[get_voxel_index(x, y, z2)] = v;
+        }
+
+        z = iback;
     }
 
-}
-
-THREAD
-void Surface (uint3 id : SV_DispatchThreadID)
-{
-    int x = (int)id.x;
-    int y = (int)id.y;
-
-    if(x >= _Width) return;
-    if(y >= _Height) return;
-
-    voxelize_surface(x, y);
 }
 
 RWTexture3D<float4> _VoxelTexture;
@@ -174,5 +350,5 @@ void BuildTexture3D (uint3 id : SV_DispatchThreadID)
 
     uint vid = get_voxel_index(x, y, z);
     Voxel v = _VoxelBuffer[vid];
-    _VoxelTexture[id] = lerp(float4(0, 0, 0, 0), _ColorTexture.SampleLevel(_LinearRepeat, v.uv, 0), v.flag ? 1.0 : 0.0);
+    _VoxelTexture[id] = lerp(float4(0, 0, 0, 0), _ColorTexture.SampleLevel(_LinearRepeat, v.uv, 0), v.fill ? 1.0 : 0.0);
 }

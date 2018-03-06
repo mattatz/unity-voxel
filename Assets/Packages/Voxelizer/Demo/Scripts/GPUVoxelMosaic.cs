@@ -22,7 +22,6 @@ namespace VoxelSystem.Demo
         #region Particle properties
 
         [SerializeField] protected float speedScaleMin = 2.0f, speedScaleMax = 5.0f;
-        [SerializeField, Range(0f, 1f)] protected float threshold = 0f;
 
         [SerializeField, Range(10, 100)] protected int frequency = 30;
         [SerializeField, Range(0f, 1f)] protected float level = 0f;
@@ -61,7 +60,7 @@ namespace VoxelSystem.Demo
 
         void Start () {
             count = GPUVoxelizer.GetNearPow2(count);
-            resolutions = Mathf.FloorToInt(Mathf.Log(count, 2)) - 1;
+            resolutions = Mathf.FloorToInt(Mathf.Log(count, 2)) - 2;
 
             levels = new GPUVoxelData[resolutions];
             for(int i = 0; i < resolutions; i++)
@@ -92,9 +91,6 @@ namespace VoxelSystem.Demo
             block.SetBuffer(kParticleBufferKey, particleBuffer);
             renderer.SetPropertyBlock(block);
 
-            var t = Time.timeSinceLevelLoad;
-            threshold = (Mathf.Cos(t * 0.5f) + 1.0f) * 0.5f;
-
             // Randomize resolution
             if(Time.frameCount % frequency == 0) level = Random.value;
         }
@@ -115,11 +111,6 @@ namespace VoxelSystem.Demo
                 particleBuffer.Release();
                 particleBuffer = null;
             }
-        }
-
-        void OnRenderObject()
-        {
-            RenderPlane();
         }
 
         #endregion
@@ -149,9 +140,6 @@ namespace VoxelSystem.Demo
 
             particleUpdate.SetVector(kDTKey, new Vector2(dt, 1f / dt));
 
-            threshold = Mathf.Clamp01(threshold);
-            particleUpdate.SetInt(kThresholdKey, Mathf.FloorToInt(threshold * levels[0].Height));
-
             particleUpdate.Dispatch(kernel.Index, particleBuffer.count / (int)kernel.ThreadX + 1, (int)kernel.ThreadY, (int)kernel.ThreadZ);
         }
 
@@ -166,38 +154,6 @@ namespace VoxelSystem.Demo
             mesh.SetIndices(indices, MeshTopology.Points, 0);
             mesh.RecalculateBounds();
             return mesh;
-        }
-
-        protected void RenderPlane()
-        {
-            GL.PushMatrix();
-            GL.MultMatrix(transform.localToWorldMatrix);
-
-            lineMat.SetPass(0);
-
-            GL.Begin(GL.LINES);
-
-            var min = bounds.min;
-            // var max = bounds.max;
-
-            var maxLevel = levels[resolutions - 1];
-            var len = maxLevel.UnitLength;
-            var max = bounds.min + new Vector3(len * maxLevel.Width, len * maxLevel.Height, len * maxLevel.Depth);
-            var h = Mathf.Lerp(min.y, max.y, threshold);
-
-            Vector3
-                v0 = new Vector3(min.x, h, min.z),
-                v1 = new Vector3(min.x, h, max.z),
-                v2 = new Vector3(max.x, h, max.z),
-                v3 = new Vector3(max.x, h, min.z);
-            
-            GL.Vertex(v0); GL.Vertex(v1);
-            GL.Vertex(v1); GL.Vertex(v2);
-            GL.Vertex(v2); GL.Vertex(v3);
-            GL.Vertex(v3); GL.Vertex(v0);
-
-            GL.End();
-            GL.PopMatrix();
         }
 
     }

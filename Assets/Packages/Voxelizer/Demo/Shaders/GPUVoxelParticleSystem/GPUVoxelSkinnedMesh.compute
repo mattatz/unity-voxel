@@ -33,9 +33,9 @@ void Setup (uint3 id : SV_DispatchThreadID)
     {
         Voxel v = _VoxelBuffer[vindex];
         particle.position = v.position;
-        particle.size = float3(1, 1, 1) * (lerp(0, _UnitLength, (uint)v.flag));
+        particle.size = float3(1, 1, 1) * (lerp(0, _UnitLength, (uint)v.fill));
     } else
-    { 
+    {
         particle.position = float3(0, 0, 0);
         particle.size = float3(0, 0, 0);
     }
@@ -52,7 +52,7 @@ void Update (uint3 id : SV_DispatchThreadID)
     if (index < _VoxelCount)
     {
         Voxel v = _VoxelBuffer[index];
-        float f01 = step(0.5, (uint)v.flag);
+        float f01 = step(0.5, (uint)v.fill);
         float3 size = f01 * float3(_UnitLength, _UnitLength, _UnitLength);
         particle.position = v.position;
         particle.size = size;

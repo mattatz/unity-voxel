@@ -44,7 +44,7 @@ float3 RotationAxis(float2 uv)
     return float3(u2 * cs, u2 * sn, u);
 }
 
-VParticle UpdatePosition(VParticle particle, uint2 id) 
+VParticle UpdatePosition(VParticle particle, uint2 id)
 {
     float3 p = particle.position;
     float3 v = particle.velocity;
@@ -150,4 +150,3 @@ void Update (uint3 id : SV_DispatchThreadID)
     }
     _ParticleBuffer[id.x] = particle;
 }
-

@@ -175,7 +175,7 @@ namespace VoxelSystem.Demo
             var count = 0;
 			for(int i = 0, n = voxels.Length; i < n; i++) {
 				var v = voxels[i];
-                if (v.flag)
+                if (v.fill > 0)
                 {
                     vertices.Add(v.position);
                     indices.Add(count++);
