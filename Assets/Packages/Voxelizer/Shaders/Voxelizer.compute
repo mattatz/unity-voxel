@@ -32,6 +32,7 @@ struct Plane
     float distance;
 };
 
+// https://gamedev.stackexchange.com/questions/23743/whats-the-most-efficient-way-to-find-barycentric-coordinates
 void tri_barycentric(float3 p, float3 a, float3 b, float3 c, out float u, out float v, out float w)
 {
     float3 v0 = b - a, v1 = c - a, v2 = p - a;
@@ -93,7 +94,6 @@ bool intersects_tri_aabb(float3 va, float3 vb, float3 vc, AABB aabb)
     p1 = dot(v1, a00);
     p2 = dot(v2, a00);
     r = extents.y * abs(f0.z) + extents.z * abs(f0.y);
-
     if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
     {
         return false;
@@ -104,7 +104,6 @@ bool intersects_tri_aabb(float3 va, float3 vb, float3 vc, AABB aabb)
     p1 = dot(v1, a01);
     p2 = dot(v2, a01);
     r = extents.y * abs(f1.z) + extents.z * abs(f1.y);
-
     if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
     {
         return false;
@@ -115,7 +114,6 @@ bool intersects_tri_aabb(float3 va, float3 vb, float3 vc, AABB aabb)
     p1 = dot(v1, a02);
     p2 = dot(v2, a02);
     r = extents.y * abs(f2.z) + extents.z * abs(f2.y);
-
     if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
     {
         return false;
@@ -136,7 +134,6 @@ bool intersects_tri_aabb(float3 va, float3 vb, float3 vc, AABB aabb)
     p1 = dot(v1, a11);
     p2 = dot(v2, a11);
     r = extents.x * abs(f1.z) + extents.z * abs(f1.x);
-
     if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
     {
         return false;
@@ -147,7 +144,6 @@ bool intersects_tri_aabb(float3 va, float3 vb, float3 vc, AABB aabb)
     p1 = dot(v1, a12);
     p2 = dot(v2, a12);
     r = extents.x * abs(f2.z) + extents.z * abs(f2.x);
-
     if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
     {
         return false;
@@ -158,7 +154,6 @@ bool intersects_tri_aabb(float3 va, float3 vb, float3 vc, AABB aabb)
     p1 = dot(v1, a20);
     p2 = dot(v2, a20);
     r = extents.x * abs(f0.y) + extents.y * abs(f0.x);
-
     if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
     {
         return false;
@@ -169,7 +164,6 @@ bool intersects_tri_aabb(float3 va, float3 vb, float3 vc, AABB aabb)
     p1 = dot(v1, a21);
     p2 = dot(v2, a21);
     r = extents.x * abs(f1.y) + extents.y * abs(f1.x);
-
     if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
     {
         return false;
@@ -180,7 +174,6 @@ bool intersects_tri_aabb(float3 va, float3 vb, float3 vc, AABB aabb)
     p1 = dot(v1, a22);
     p2 = dot(v2, a22);
     r = extents.x * abs(f2.y) + extents.y * abs(f2.x);
-
     if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
     {
         return false;

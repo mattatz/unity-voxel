@@ -34,6 +34,7 @@ namespace VoxelSystem {
                 return uva * u + uvb * v + uvc * w;
             }
 
+            // https://gamedev.stackexchange.com/questions/23743/whats-the-most-efficient-way-to-find-barycentric-coordinates
             public void Barycentric(Vector3 p, out float u, out float v, out float w)
             {
                 Vector3 v0 = b - a, v1 = c - a, v2 = p - a;

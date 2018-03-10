@@ -41,7 +41,7 @@ GPUVoxelData data = GPUVoxelizer.Voxelize(
 );
 
 // build voxel cubes integrated mesh
-GetComponent<MeshFilter>().sharedMesh = GPUVoxelizer.Build(data);
+GetComponent<MeshFilter>().sharedMesh = VoxelMesh.Build(data.GetData(), data.UnitLength, useUV);
 
 // build 3D texture represent a volume by voxels.
 RenderTexture volumeTexture = GPUVoxelizer.BuildTexture3D(
@@ -60,7 +60,7 @@ with CPU Voxelizer
 ```cs
 // Voxelize target mesh with CPU Voxelizer
 
-List<Voxel> voxels = Voxelizer.Voxelize(
+List<Voxel> voxels = CPUVoxelizer.Voxelize(
     mesh,   // a target mesh
     20      // # of voxels for largest AABB bounds
 );
