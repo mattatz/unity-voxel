@@ -747,7 +747,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   mesh: {fileID: 4300000, guid: 63f02b0b185805d4bb7b60a832931f59, type: 3}
-  resolution: 64
+  resolution: 128
   useUV: 0
 --- !u!4 &1950402818
 Transform:

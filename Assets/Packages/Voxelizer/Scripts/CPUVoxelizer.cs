@@ -124,6 +124,8 @@ namespace VoxelSystem {
 
                 // Debug.Log((iminX + "," + iminY + "," + iminZ) + " ~ " + (imaxX + "," + imaxY + "," + imaxZ));
 
+                uint front = (uint)(tri.frontFacing ? 1 : 0);
+
                 for(int x = iminX; x <= imaxX; x++) {
                     for(int y = iminY; y <= imaxY; y++) {
                         for(int z = iminZ; z <= imaxZ; z++) {
@@ -131,8 +133,14 @@ namespace VoxelSystem {
                                 var voxel = volume[x, y, z];
                                 voxel.position = boxes[x, y, z].center;
                                 voxel.uv = tri.GetUV(voxel.position, uva, uvb, uvc);
+                                if((voxel.fill & 1) == 0)
+                                {
+                                    voxel.front = front;
+                                } else
+                                {
+                                    voxel.front = voxel.front & front;
+                                }
                                 voxel.fill = voxel.fill | 1;
-                                voxel.front = voxel.front | (uint)(tri.frontFacing ? 1 : 0);
                                 volume[x, y, z] = voxel;
                             }
                         }

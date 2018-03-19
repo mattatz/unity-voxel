@@ -262,8 +262,13 @@ void Surface (uint3 id : SV_DispatchThreadID)
                     Voxel voxel = _VoxelBuffer[vid];
                     voxel.position = get_voxel_position(x, y, z);
                     voxel.uv = tri_barycentric_uv(voxel.position, va, vb, vc, uva, uvb, uvc);
+					if (!voxel.fill) {
+						voxel.front = front;
+					} else {
+						// priority to back face
+						voxel.front = voxel.front && front;
+					}
                     voxel.fill = true;
-                    voxel.front = voxel.front || front;
                     _VoxelBuffer[vid] = voxel;
                 }
             }
