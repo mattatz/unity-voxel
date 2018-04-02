@@ -290,7 +290,7 @@ void Volume (uint3 id : SV_DispatchThreadID)
         if (!voxel.fill) continue;
 
         int ifront = z;
-        float2 uv = float2(0, 0);
+        float2 uv = voxel.uv;
         for (; ifront < _Depth; ifront++) {
             int vid = get_voxel_index(x, y, ifront);
             if (!is_front_voxel(_VoxelBuffer[vid])) {
