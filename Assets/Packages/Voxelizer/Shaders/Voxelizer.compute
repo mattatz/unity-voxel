@@ -1,4 +1,5 @@
-﻿#pragma kernel Surface
+﻿#pragma kernel SurfaceFront
+#pragma kernel SurfaceBack
 #pragma kernel Volume
 #pragma kernel BuildTexture3D
 
@@ -54,6 +55,21 @@ float2 tri_barycentric_uv(float3 p, float3 va, float3 vb, float3 vc, float2 uva,
     return uva * u + uvb * v + uvc * w;
 }
 
+// check intersection between the triangle (v0, v1, v2) and AABB (extents) with projection onto the axis
+bool intersects_tri_aabb_onto_axis(float3 v0, float3 v1, float3 v2, float3 extents, float3 axis)
+{
+    // project all 3 vertices of the triangle onto the axis
+    float p0 = dot(v0, axis);
+    float p1 = dot(v1, axis);
+    float p2 = dot(v2, axis);
+
+    // project the AABB onto the axis
+    float r = extents.x * abs(axis.x) + extents.y * abs(axis.y) + extents.z * abs(axis.z);
+    float minP = min(p0, min(p1, p2));
+    float maxP = max(p0, max(p1, p2));
+    return !((maxP < -r) || (r < minP));
+}
+
 bool intersects_plane_aabb(Plane pl, AABB aabb)
 {
     float3 center = aabb.center;
@@ -71,129 +87,65 @@ bool intersects_tri_aabb(float3 va, float3 vb, float3 vc, AABB aabb)
 
     float3 center = aabb.center, extents = aabb.max - center;
 
+    // translate the triangle as conceptually moving the AABB to origin
     float3 v0 = va - center,
-        v1 = vb - center,
-        v2 = vc - center;
+    v1 = vb - center,
+    v2 = vc - center;
 
+    // compute the edge vectors of the triangle
+    // get the lines between the points as vectors
     float3 f0 = v1 - v0,
-        f1 = v2 - v1,
-        f2 = v0 - v2;
+    f1 = v2 - v1,
+    f2 = v0 - v2;
 
-    float3 a00 = float3(0, -f0.z, f0.y),
-        a01 = float3(0, -f1.z, f1.y),
-        a02 = float3(0, -f2.z, f2.y),
-        a10 = float3(f0.z, 0, -f0.x),
-        a11 = float3(f1.z, 0, -f1.x),
-        a12 = float3(f2.z, 0, -f2.x),
-        a20 = float3(-f0.y, f0.x, 0),
-        a21 = float3(-f1.y, f1.x, 0),
-        a22 = float3(-f2.y, f2.x, 0);
+    // cross products of triangle edges & aabb edges
+    // AABB normals are the x (1, 0, 0), y (0, 1, 0), z (0, 0, 1) axis.
+    // so we can get the cross products between triangle edge vectors and AABB normals without calculation
+    float3 a00 = float3(0, -f0.z, f0.y), // cross product of X and f0
+    a01 = float3(0, -f1.z, f1.y), // X and f1
+    a02 = float3(0, -f2.z, f2.y), // X and f2
+    a10 = float3(f0.z, 0, -f0.x), // Y and f0
+    a11 = float3(f1.z, 0, -f1.x), // Y and f1
+    a12 = float3(f2.z, 0, -f2.x), // Y and f2
+    a20 = float3(-f0.y, f0.x, 0), // Z and f0
+    a21 = float3(-f1.y, f1.x, 0), // Z and f1
+    a22 = float3(-f2.y, f2.x, 0); // Z and f2
 
-    // Test axis a00
-    p0 = dot(v0, a00);
-    p1 = dot(v1, a00);
-    p2 = dot(v2, a00);
-    r = extents.y * abs(f0.z) + extents.z * abs(f0.y);
-    if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
+    // Test 9 axes
+    if (
+        !intersects_tri_aabb_onto_axis(v0, v1, v2, extents, a00) ||
+        !intersects_tri_aabb_onto_axis(v0, v1, v2, extents, a01) ||
+        !intersects_tri_aabb_onto_axis(v0, v1, v2, extents, a02) ||
+        !intersects_tri_aabb_onto_axis(v0, v1, v2, extents, a10) ||
+        !intersects_tri_aabb_onto_axis(v0, v1, v2, extents, a11) ||
+        !intersects_tri_aabb_onto_axis(v0, v1, v2, extents, a12) ||
+        !intersects_tri_aabb_onto_axis(v0, v1, v2, extents, a20) ||
+        !intersects_tri_aabb_onto_axis(v0, v1, v2, extents, a21) ||
+        !intersects_tri_aabb_onto_axis(v0, v1, v2, extents, a22)
+    )
     {
         return false;
     }
 
-    // Test axis a01
-    p0 = dot(v0, a01);
-    p1 = dot(v1, a01);
-    p2 = dot(v2, a01);
-    r = extents.y * abs(f1.z) + extents.z * abs(f1.y);
-    if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
-    {
-        return false;
-    }
-
-    // Test axis a02
-    p0 = dot(v0, a02);
-    p1 = dot(v1, a02);
-    p2 = dot(v2, a02);
-    r = extents.y * abs(f2.z) + extents.z * abs(f2.y);
-    if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
-    {
-        return false;
-    }
-
-    // Test axis a10
-    p0 = dot(v0, a10);
-    p1 = dot(v1, a10);
-    p2 = dot(v2, a10);
-    r = extents.x * abs(f0.z) + extents.z * abs(f0.x);
-    if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
-    {
-        return false;
-    }
-
-    // Test axis a11
-    p0 = dot(v0, a11);
-    p1 = dot(v1, a11);
-    p2 = dot(v2, a11);
-    r = extents.x * abs(f1.z) + extents.z * abs(f1.x);
-    if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
-    {
-        return false;
-    }
-
-    // Test axis a12
-    p0 = dot(v0, a12);
-    p1 = dot(v1, a12);
-    p2 = dot(v2, a12);
-    r = extents.x * abs(f2.z) + extents.z * abs(f2.x);
-    if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
-    {
-        return false;
-    }
-
-    // Test axis a20
-    p0 = dot(v0, a20);
-    p1 = dot(v1, a20);
-    p2 = dot(v2, a20);
-    r = extents.x * abs(f0.y) + extents.y * abs(f0.x);
-    if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
-    {
-        return false;
-    }
-
-    // Test axis a21
-    p0 = dot(v0, a21);
-    p1 = dot(v1, a21);
-    p2 = dot(v2, a21);
-    r = extents.x * abs(f1.y) + extents.y * abs(f1.x);
-    if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
-    {
-        return false;
-    }
-
-    // Test axis a22
-    p0 = dot(v0, a22);
-    p1 = dot(v1, a22);
-    p2 = dot(v2, a22);
-    r = extents.x * abs(f2.y) + extents.y * abs(f2.x);
-    if (max(-max(p0, max(p1, p2)), min(p0, min(p1, p2))) > r)
-    {
-        return false;
-    }
-
+    // Test x axis
     if (max(v0.x, max(v1.x, v2.x)) < -extents.x || min(v0.x, min(v1.x, v2.x)) > extents.x)
     {
         return false;
     }
 
+    // Test y axis
     if (max(v0.y, max(v1.y, v2.y)) < -extents.y || min(v0.y, min(v1.y, v2.y)) > extents.y)
     {
         return false;
     }
 
+    // Test z axis
     if (max(v0.z, max(v1.z, v2.z)) < -extents.z || min(v0.z, min(v1.z, v2.z)) > extents.z)
     {
         return false;
     }
 
+    // Test triangle normal
     Plane pl;
     pl.normal = normalize(cross(f1, f0));
     pl.distance = dot(pl.normal, va);
@@ -212,27 +164,35 @@ float3 get_voxel_position(int x, int y, int z) {
     );
 }
 
-[numthreads(8, 1, 1)]
-void Surface (uint3 id : SV_DispatchThreadID)
+void GetTriangle(
+    int idx, 
+    out float3 va, out float3 vb, out float3 vc, 
+    out float2 uva, out float2 uvb, out float2 uvc,
+    out bool front
+)
 {
-    int idx = (int)id.x;
-    if(idx >= _TriangleIndexes) return;
-
     int ia = _TriBuffer[idx * 3];
     int ib = _TriBuffer[idx * 3 + 1];
     int ic = _TriBuffer[idx * 3 + 2];
 
-    float3 va = _VertBuffer[ia];
-    float3 vb = _VertBuffer[ib];
-    float3 vc = _VertBuffer[ic];
+    va = _VertBuffer[ia];
+    vb = _VertBuffer[ib];
+    vc = _VertBuffer[ic];
 
-    float2 uva = _UVBuffer[ia];
-    float2 uvb = _UVBuffer[ib];
-    float2 uvc = _UVBuffer[ic];
+    uva = _UVBuffer[ia];
+    uvb = _UVBuffer[ib];
+    uvc = _UVBuffer[ic];
 
     float3 normal = cross((vb - va), (vc - vb));
-    bool front = dot(normal, float3(0, 0, 1)) < 0;
+    front = dot(normal, float3(0, 0, 1)) < 0;
+}
 
+void Surface(
+    float3 va, float3 vb, float3 vc,
+    float2 uva, float2 uvb, float2 uvc,
+    bool front
+)
+{
     float3 tbmin = min(min(va, vb), vc);
     float3 tbmax = max(max(va, vb), vc);
 
@@ -262,18 +222,43 @@ void Surface (uint3 id : SV_DispatchThreadID)
                     Voxel voxel = _VoxelBuffer[vid];
                     voxel.position = get_voxel_position(x, y, z);
                     voxel.uv = tri_barycentric_uv(voxel.position, va, vb, vc, uva, uvb, uvc);
-					if (!voxel.fill) {
-						voxel.front = front;
-					} else {
-						// priority to back face
-						voxel.front = voxel.front && front;
-					}
+                    voxel.front = front;
                     voxel.fill = true;
                     _VoxelBuffer[vid] = voxel;
                 }
             }
         }
     }
+}
+
+[numthreads(8, 1, 1)]
+void SurfaceFront (uint3 id : SV_DispatchThreadID)
+{
+    int idx = (int)id.x;
+    if(idx >= _TriangleIndexes) return;
+
+    float3 va, vb, vc;
+    float2 uva, uvb, uvc;
+    bool front;
+    GetTriangle(idx, va, vb, vc, uva, uvb, uvc, front);
+
+    if (!front) return;
+    Surface(va, vb, vc, uva, uvb, uvc, front);
+}
+
+[numthreads(8, 1, 1)]
+void SurfaceBack (uint3 id : SV_DispatchThreadID)
+{
+    int idx = (int)id.x;
+    if(idx >= _TriangleIndexes) return;
+
+    float3 va, vb, vc;
+    float2 uva, uvb, uvc;
+    bool front;
+    GetTriangle(idx, va, vb, vc, uva, uvb, uvc, front);
+
+    if (front) return;
+    Surface(va, vb, vc, uva, uvb, uvc, front);
 }
 
 [numthreads(8, 8, 1)]
@@ -303,8 +288,8 @@ void Volume (uint3 id : SV_DispatchThreadID)
 
         int iback = ifront;
 
-        // step forward to cavity
-        for (; iback < _Depth &&  is_cavity_voxel(_VoxelBuffer[get_voxel_index(x, y, iback)]); iback++) {}
+        // step forward to empty
+        for (; iback < _Depth &&  is_empty_voxel(_VoxelBuffer[get_voxel_index(x, y, iback)]); iback++) {}
 
         if (iback >= _Depth) return;
 

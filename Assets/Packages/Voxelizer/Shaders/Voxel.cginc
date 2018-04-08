@@ -18,7 +18,7 @@ bool is_back_voxel(Voxel v)
     return v.fill && !v.front;
 }
 
-bool is_cavity_voxel(Voxel v)
+bool is_empty_voxel(Voxel v)
 {
     return !v.fill;
 }

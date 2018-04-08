@@ -154,7 +154,7 @@ namespace VoxelSystem {
                 {
                     for(int z = 0; z < depth; z++)
                     {
-                        if (volume[x, y, z].IsCavity()) continue;
+                        if (volume[x, y, z].IsEmpty()) continue;
 
                         int ifront = z;
 
@@ -171,7 +171,7 @@ namespace VoxelSystem {
                         var iback = ifront;
 
                         // step forward to cavity
-                        for (; iback < depth && volume[x, y, iback].IsCavity(); iback++) {}
+                        for (; iback < depth && volume[x, y, iback].IsEmpty(); iback++) {}
 
                         if (iback >= depth) break;
 
@@ -201,7 +201,7 @@ namespace VoxelSystem {
             for(int x = 0; x < width; x++) {
                 for(int y = 0; y < height; y++) {
                     for(int z = 0; z < depth; z++) {
-                        if(!volume[x, y, z].IsCavity())
+                        if(!volume[x, y, z].IsEmpty())
                         {
                             voxels.Add(volume[x, y, z]);
                         }

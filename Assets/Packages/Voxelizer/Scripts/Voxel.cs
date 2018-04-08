@@ -25,7 +25,7 @@ namespace VoxelSystem
             return fill > 0 && front > 0;
         }
 
-        public bool IsCavity()
+        public bool IsEmpty()
         {
             return fill < 1;
         }

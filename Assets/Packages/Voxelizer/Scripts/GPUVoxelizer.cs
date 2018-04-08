@@ -11,7 +11,7 @@ namespace VoxelSystem {
 
 	public class GPUVoxelizer {
 
-		protected const string kVolumeKernelKey = "Volume", kSurfaceKernelKey = "Surface", kTextureKernelKey = "BuildTexture3D";
+		protected const string kVolumeKernelKey = "Volume", kSurfaceFrontKernelKey = "SurfaceFront", kSurfaceBackKernelKey = "SurfaceBack", kTextureKernelKey = "BuildTexture3D";
 		protected const string kStartKey = "_Start", kEndKey = "_End", kSizeKey = "_Size";
 		protected const string kUnitKey = "_Unit", kInvUnitKey = "_InvUnit", kHalfUnitKey = "_HalfUnit";
 		protected const string kWidthKey = "_Width", kHeightKey = "_Height", kDepthKey = "_Depth";
@@ -88,21 +88,31 @@ namespace VoxelSystem {
 			voxelizer.SetInt(kDepthKey, d);
 
 			// send mesh data
-			var surfaceKer = new Kernel(voxelizer, kSurfaceKernelKey);
-			voxelizer.SetBuffer(surfaceKer.Index, kVertBufferKey, vertBuffer);
-			voxelizer.SetBuffer(surfaceKer.Index, kUVBufferKey, uvBuffer);
 			voxelizer.SetInt(kTriCountKey, triBuffer.count);
             var indexes = triBuffer.count / 3;
 			voxelizer.SetInt(kTriIndexesKey, indexes);
-			voxelizer.SetBuffer(surfaceKer.Index, kTriBufferKey, triBuffer);
-			voxelizer.SetBuffer(surfaceKer.Index, kVoxelBufferKey, voxelBuffer);
-			voxelizer.Dispatch(surfaceKer.Index, indexes / (int)surfaceKer.ThreadX + 1, (int)surfaceKer.ThreadY, (int)surfaceKer.ThreadZ);
+
+            // surface front
+			var surfaceFrontKer = new Kernel(voxelizer, kSurfaceFrontKernelKey);
+			voxelizer.SetBuffer(surfaceFrontKer.Index, kVertBufferKey, vertBuffer);
+			voxelizer.SetBuffer(surfaceFrontKer.Index, kUVBufferKey, uvBuffer);
+			voxelizer.SetBuffer(surfaceFrontKer.Index, kTriBufferKey, triBuffer);
+			voxelizer.SetBuffer(surfaceFrontKer.Index, kVoxelBufferKey, voxelBuffer);
+			voxelizer.Dispatch(surfaceFrontKer.Index, indexes / (int)surfaceFrontKer.ThreadX + 1, (int)surfaceFrontKer.ThreadY, (int)surfaceFrontKer.ThreadZ);
+
+            // surface back
+			var surfaceBackKer = new Kernel(voxelizer, kSurfaceBackKernelKey);
+			voxelizer.SetBuffer(surfaceBackKer.Index, kVertBufferKey, vertBuffer);
+			voxelizer.SetBuffer(surfaceBackKer.Index, kUVBufferKey, uvBuffer);
+			voxelizer.SetBuffer(surfaceBackKer.Index, kTriBufferKey, triBuffer);
+			voxelizer.SetBuffer(surfaceBackKer.Index, kVoxelBufferKey, voxelBuffer);
+			voxelizer.Dispatch(surfaceBackKer.Index, indexes / (int)surfaceBackKer.ThreadX + 1, (int)surfaceBackKer.ThreadY, (int)surfaceBackKer.ThreadZ);
 
             if(volume)
             {
 			    var volumeKer = new Kernel(voxelizer, kVolumeKernelKey);
                 voxelizer.SetBuffer(volumeKer.Index, kVoxelBufferKey, voxelBuffer);
-                voxelizer.Dispatch(volumeKer.Index, w / (int)volumeKer.ThreadX + 1, h / (int)volumeKer.ThreadY + 1, (int)surfaceKer.ThreadZ);
+                voxelizer.Dispatch(volumeKer.Index, w / (int)volumeKer.ThreadX + 1, h / (int)volumeKer.ThreadY + 1, (int)surfaceFrontKer.ThreadZ);
             }
 
 			// dispose
