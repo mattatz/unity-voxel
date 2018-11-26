@@ -68,7 +68,7 @@ List<Voxel> voxels = CPUVoxelizer.Voxelize(
 
 ## Compatibility
 
-tested on Unity 2017.0.3, windows10 (GTX 1060), macOS (metal).
+tested on Unity 2018.2.8f1, windows10 (GTX 1060), macOS (metal, not compatible with GPU Particle Demo).
 
 ## Sources
 
