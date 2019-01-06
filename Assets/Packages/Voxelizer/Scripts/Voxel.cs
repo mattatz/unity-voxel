@@ -9,11 +9,12 @@ namespace VoxelSystem
 {
 
     [StructLayout(LayoutKind.Sequential)]
-	public struct Voxel_t {
-		public Vector3 position;
+    public struct Voxel_t
+    {
+        public Vector3 position;
         public Vector2 uv;
-		public uint fill;
-		public uint front;
+        public uint fill;
+        public uint front;
 
         public bool IsFrontFace()
         {
@@ -22,14 +23,14 @@ namespace VoxelSystem
 
         public bool IsBackFace()
         {
-            return fill > 0 && front > 0;
+            return fill > 0 && front < 1;
         }
 
         public bool IsEmpty()
         {
             return fill < 1;
         }
-	}
+    }
 
 }
 
