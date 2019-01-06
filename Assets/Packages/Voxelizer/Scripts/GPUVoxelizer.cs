@@ -143,7 +143,7 @@ namespace VoxelSystem {
 
         static RenderTexture CreateTexture3D(GPUVoxelData data, RenderTextureFormat format, FilterMode filterMode)
         {
-            var texture = new RenderTexture(data.Width, data.Height, data.Depth, format, RenderTextureReadWrite.Default);
+            var texture = new RenderTexture(data.Width, data.Height, 0, format, RenderTextureReadWrite.Default);
             texture.dimension = TextureDimension.Tex3D;
             texture.volumeDepth = data.Depth;
             texture.enableRandomWrite = true;
